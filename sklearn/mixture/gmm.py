@@ -113,6 +113,7 @@ def sample_gaussian(mean, covar, covariance_type='diag', n_samples=1,
 
 
 class GMM(BaseEstimator):
+
     """Gaussian Mixture Model.
 
     Representation of a Gaussian mixture model probability distribution.
@@ -250,7 +251,7 @@ class GMM(BaseEstimator):
         self.init_params = init_params
         self.verbose = verbose
 
-        if covariance_type not in ['spherical', 'tied', 'diag', 'full']:
+        if covariance_type not in ['spherical', 'tied', 'diag', 'full', 'density']:
             raise ValueError('Invalid value for covariance_type: %s' %
                              covariance_type)
 
@@ -418,7 +419,7 @@ class GMM(BaseEstimator):
                     num_comp_in_X, random_state=random_state).T
         return X
 
-    def fit_predict(self, X, y=None):
+    def fit_predict(self, X, y=None, w=None):
         """Fit and then predict labels for data.
 
         Warning: Due to the final maximization step in the EM algorithm,
@@ -435,9 +436,9 @@ class GMM(BaseEstimator):
         -------
         C : array, shape = (n_samples,) component memberships
         """
-        return self._fit(X, y).argmax(axis=1)
+        return self._fit(X, y, w=w).argmax(axis=1)
 
-    def _fit(self, X, y=None, do_prediction=False):
+    def _fit(self, X, y=None, do_prediction=False, w=None):
         """Estimate model parameters with the EM algorithm.
 
         A initialization step is performed before entering the
@@ -512,7 +513,10 @@ class GMM(BaseEstimator):
                 prev_log_likelihood = current_log_likelihood
                 # Expectation step
                 log_likelihoods, responsibilities = self.score_samples(X)
-                current_log_likelihood = log_likelihoods.mean()
+                if w is not None:
+                    current_log_likelihood = (log_likelihoods * w).mean()
+                else:
+                    current_log_likelihood = log_likelihoods.mean()
 
                 # Check for convergence.
                 if prev_log_likelihood is not None:
@@ -565,7 +569,7 @@ class GMM(BaseEstimator):
 
         return responsibilities
 
-    def fit(self, X, y=None):
+    def fit(self, X, y=None, w=None):
         """Estimate model parameters with the EM algorithm.
 
         A initialization step is performed before entering the
@@ -584,7 +588,7 @@ class GMM(BaseEstimator):
         -------
         self
         """
-        self._fit(X, y)
+        self._fit(X, y, w=w)
         return self
 
     def _do_mstep(self, X, responsibilities, params, min_covar=0):
